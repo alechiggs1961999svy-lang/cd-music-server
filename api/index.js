@@ -4,6 +4,8 @@
 const netease = require('../src/netEase')
 const qq = require('../src/qq')
 const playlist = require('../src/playlist')
+const qqPlaylist = require('../src/qqPlaylist')
+const kgPlaylist = require('../src/kgPlaylist')
 const url = require('../src/url')
 
 const SUPPORTED_SOURCES = ['wy', 'tx'] // 聚合层先支持网易云 + QQ（酷狗/酷我后补）
@@ -29,9 +31,12 @@ async function handle(action, body) {
       return fail(`不支持的源: ${source}`)
     }
     case 'playlist': {
-      const { id } = body || {}
+      const { id, source = 'wy' } = body || {}
       if (!id) return fail('缺少歌单 id')
-      return ok(await playlist.getPlaylist(id))
+      if (source === 'wy') return ok(await playlist.getPlaylist(id))
+      if (source === 'tx') return ok(await qqPlaylist.getPlaylist(id))
+      if (source === 'kg') return ok(await kgPlaylist.getPlaylist(id))
+      return fail(`不支持的歌单源: ${source}`)
     }
     case 'url': {
       const { source, musicId, quality } = body || {}
