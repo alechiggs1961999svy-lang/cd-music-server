@@ -1,8 +1,12 @@
 // 网易云平台：搜索 + 歌词（用公开接口，稳定简单）
-const { request, DEFAULT_UA, formatPlayTime, sizeFormate } = require('./http')
+const { request, DEFAULT_UA, formatPlayTime, sizeFormate, cacheGet, cacheSet } = require('./http')
 
 // 搜索（单曲，公开接口）
 async function search(keyword, page = 1, limit = 30) {
+  const cacheKey = `${keyword}_${page}_${limit}`
+  const cached = cacheGet('search', cacheKey)
+  if (cached) return cached
+
   const res = await request(
     `https://music.163.com/api/search/get?s=${encodeURIComponent(keyword)}&type=1&limit=${limit}&offset=${limit * (page - 1)}`,
     { headers: { Referer: 'https://music.163.com/' }, timeout: 8000 },
@@ -10,7 +14,7 @@ async function search(keyword, page = 1, limit = 30) {
   const data = res.body
   if (!data || data.code !== 200 || !data.result?.songs) return []
 
-  return data.result.songs.map(item => {
+  const result = data.result.songs.map(item => {
     const _types = {}
     const types = []
     // 公开接口没有音质详情，用默认降级链（url 接口会自己降级）
@@ -29,17 +33,24 @@ async function search(keyword, page = 1, limit = 30) {
       _types,
     }
   })
+  cacheSet('search', cacheKey, result)
+  return result
 }
 
 // 歌词
 async function lyric(songId) {
+  const cached = cacheGet('lyric', songId)
+  if (cached !== undefined) return cached
+
   const res = await request(`https://music.163.com/api/song/lyric?id=${songId}&lv=-1&kv=-1&tv=-1`, {
     headers: { Referer: 'https://music.163.com/' },
     timeout: 6000,
   })
   const data = res.body
   if (!data || !data.lrc) return ''
-  return data.lrc.lyric || ''
+  const lrc = data.lrc.lyric || ''
+  cacheSet('lyric', songId, lrc)
+  return lrc
 }
 
 module.exports = { search, lyric }

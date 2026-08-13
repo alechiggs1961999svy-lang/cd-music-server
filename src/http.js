@@ -1,5 +1,23 @@
-// 统一的 fetch 封装：带 UA/Referer、超时、JSON 解析
+// 统一的 fetch 封装：带 UA/Referer、超时、JSON 解析、内存缓存
 const DEFAULT_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
+
+// 简单的内存缓存（Vercel serverless 实例内有效，够用）
+const cache = new Map()
+const cacheTTL = {
+  search: 60 * 1000,      // 搜索结果缓存 1 分钟
+  lyric: 30 * 60 * 1000,  // 歌词缓存 30 分钟
+  playlist: 5 * 60 * 1000, // 歌单缓存 5 分钟
+  url: 10 * 60 * 1000,    // 播放 URL 缓存 10 分钟（付费链接有时效）
+}
+function cacheGet(type, key) {
+  const item = cache.get(`${type}:${key}`)
+  if (item && Date.now() - item.t < cacheTTL[type]) return item.v
+  cache.delete(`${type}:${key}`)
+  return undefined
+}
+function cacheSet(type, key, value) {
+  cache.set(`${type}:${key}`, { t: Date.now(), v: value })
+}
 
 async function request(url, { method = 'GET', headers = {}, body = null, timeout = 8000 } = {}) {
   const controller = new AbortController()
@@ -33,4 +51,4 @@ const sizeFormate = size => {
   return mb >= 1 ? `${mb.toFixed(1)}MB` : `${(size / 1024).toFixed(0)}KB`
 }
 
-module.exports = { request, DEFAULT_UA, formatPlayTime, sizeFormate }
+module.exports = { request, DEFAULT_UA, formatPlayTime, sizeFormate, cacheGet, cacheSet }

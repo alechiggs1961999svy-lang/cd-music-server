@@ -1,5 +1,5 @@
 // 播放地址：转发用户的 c.wwwweb.top 音源（lx-music 协议），带质量降级链
-const { request } = require('./http')
+const { request, cacheGet, cacheSet } = require('./http')
 
 const API = 'https://c.wwwweb.top/music/url'
 const KEY = process.env.MUSIC_SOURCE_KEY || '[REMOVED]'
@@ -14,6 +14,10 @@ const normalizeUrl = (source, url) => {
 }
 
 async function getUrl(source, musicId, quality = 'master') {
+  const cacheKey = `${source}_${musicId}_${quality}`
+  const cached = cacheGet('url', cacheKey)
+  if (cached) return cached
+
   // 从用户请求的档位开始，沿降级链逐个试
   const startIdx = QUALITY_CHAIN.indexOf(quality)
   const chain = startIdx >= 0 ? QUALITY_CHAIN.slice(startIdx) : QUALITY_CHAIN
@@ -32,7 +36,9 @@ async function getUrl(source, musicId, quality = 'master') {
       })
       const d = res.body
       if (d && d.code === 200 && d.url) {
-        return { quality: q, url: normalizeUrl(source, d.url) }
+        const result = { quality: q, url: normalizeUrl(source, d.url) }
+        cacheSet('url', cacheKey, result)
+        return result
       }
     } catch {}
   }

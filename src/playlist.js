@@ -1,5 +1,5 @@
 // 网易云歌单解析（公开 v6 接口，同博客 musicApi.ts；限 500 首防 Vercel 超时）
-const { request, DEFAULT_UA, formatPlayTime } = require('./http')
+const { request, DEFAULT_UA, formatPlayTime, cacheGet, cacheSet } = require('./http')
 
 const extractId = raw => {
   let id = String(raw).trim()
@@ -12,6 +12,8 @@ const extractId = raw => {
 
 async function getPlaylist(rawId) {
   const id = extractId(rawId)
+  const cached = cacheGet('playlist', id)
+  if (cached) return cached
   // 1. v6 接口拿歌单名 + 全部歌曲 ID
   const res = await request(`https://music.163.com/api/v6/playlist/detail?id=${id}&n=100000`, {
     headers: { Referer: 'https://music.163.com/' },
@@ -54,7 +56,7 @@ async function getPlaylist(rawId) {
     source: 'wy', songmid: id2, name: '', singer: '', albumName: '', img: '',
   })
 
-  return {
+  const result = {
     source: 'wy',
     name: playlist.name || '导入歌单',
     img: playlist.coverImgUrl || '',
@@ -62,6 +64,8 @@ async function getPlaylist(rawId) {
     total: playlist.trackIds.length,
     songs,
   }
+  cacheSet('playlist', id, result)
+  return result
 }
 
 module.exports = { getPlaylist }
