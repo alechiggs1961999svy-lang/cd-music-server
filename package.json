@@ -1,0 +1,13 @@
+{
+  "name": "cd-music-server",
+  "version": "0.1.0",
+  "description": "CD Music 聚合服务（Vercel 部署）",
+  "main": "api/index.js",
+  "scripts": {
+    "dev": "node api/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {}
+}
