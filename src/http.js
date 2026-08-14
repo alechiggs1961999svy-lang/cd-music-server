@@ -51,4 +51,17 @@ const sizeFormate = size => {
   return mb >= 1 ? `${mb.toFixed(1)}MB` : `${(size / 1024).toFixed(0)}KB`
 }
 
-module.exports = { request, DEFAULT_UA, formatPlayTime, sizeFormate, cacheGet, cacheSet }
+// 二进制响应（酷我歌词等 zlib 压缩流）
+async function requestBuffer(url, { headers = {}, timeout = 8000 } = {}) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeout)
+  try {
+    const res = await fetch(url, { headers: { 'User-Agent': DEFAULT_UA, ...headers }, signal: controller.signal })
+    const buffer = Buffer.from(await res.arrayBuffer())
+    return { status: res.status, buffer }
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+module.exports = { request, requestBuffer, DEFAULT_UA, formatPlayTime, sizeFormate, cacheGet, cacheSet }

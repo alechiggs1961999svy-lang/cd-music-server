@@ -1,5 +1,6 @@
 // 酷我搜索 + 歌词（公开接口，移植自 lx-music 的 kw 源）
-const { request, formatPlayTime, cacheGet, cacheSet } = require('./http')
+const zlib = require('zlib')
+const { request, requestBuffer, formatPlayTime, cacheGet, cacheSet } = require('./http')
 
 const decodeName = (str = '') =>
   String(str)
@@ -71,7 +72,45 @@ async function search(keyword, page = 1, limit = 30) {
   return result
 }
 
-// 歌词：主接口 m.kuwo.cn，失败回退 newlyric.kuwo.cn
+// 歌词：主接口 m.kuwo.cn（可能限流），回退加密接口 newlyric.kuwo.cn（移植 lx-music 协议）
+const bufKey = Buffer.from('yeelion')
+
+// 加密请求参数：XOR('yeelion') + base64
+const buildParams = (id, isGetLyricx) => {
+  let params = `user=12345,web,web,web&requester=localhost&req=1&rid=MUSIC_${id}`
+  if (isGetLyricx) params += '&lrcx=1'
+  const buf = Buffer.from(params)
+  const out = Buffer.alloc(buf.length)
+  for (let i = 0; i < buf.length; i++) out[i] = buf[i] ^ bufKey[i % bufKey.length]
+  return out.toString('base64')
+}
+
+const decodeGbk = buf => {
+  try {
+    return new TextDecoder('gb18030').decode(buf)
+  } catch {
+    return ''
+  }
+}
+
+// 解析 newlyric 响应：tp=content 头 + zlib 压缩体
+const parseNewlyric = (buf, isGetLyricx) => {
+  try {
+    if (!buf || buf.toString('utf8', 0, 10) !== 'tp=content') return ''
+    const idx = buf.indexOf('\r\n\r\n')
+    if (idx < 0) return ''
+    const inflated = zlib.inflateSync(buf.slice(idx + 4))
+    if (!isGetLyricx) return decodeGbk(inflated) // 直接是 GBK LRC 文本
+    // lrcx=1：base64 → XOR → GBK 文本（含逐字时间标签，去掉）
+    const data = Buffer.from(inflated.toString(), 'base64')
+    const out = Buffer.alloc(data.length)
+    for (let i = 0; i < data.length; i++) out[i] = data[i] ^ bufKey[i % bufKey.length]
+    return decodeGbk(out).replace(/<-?\d+,-?\d+(?:,-?\d+)?>/g, '')
+  } catch {
+    return ''
+  }
+}
+
 async function lyric(songId) {
   const cacheKey = `kw_${songId}`
   const cached = cacheGet('lyric', cacheKey)
@@ -83,7 +122,7 @@ async function lyric(songId) {
     return `${m < 10 ? '0' + m : m}:${s < 10 ? '0' + s : s}`
   }
 
-  // 1. m.kuwo.cn（结构化 lrclist）
+  // 1. m.kuwo.cn（结构化 lrclist，简单优先）
   try {
     const res = await request(`http://m.kuwo.cn/newh5/singles/songinfoandlrc?musicId=${songId}`, {
       headers: { Referer: 'http://m.kuwo.cn/', 'User-Agent': 'Mozilla/5.0' },
@@ -97,17 +136,20 @@ async function lyric(songId) {
     }
   } catch {}
 
-  // 2. 回退 newlyric.kuwo.cn（直接返回 LRC 文本）
-  try {
-    const res = await request(`http://newlyric.kuwo.cn/newlyric.lrc?${songId}`, {
-      headers: { Referer: 'http://www.kuwo.cn/', 'User-Agent': 'Mozilla/5.0' },
-      timeout: 6000,
-    })
-    if (typeof res.body === 'string' && res.body.includes('[')) {
-      cacheSet('lyric', cacheKey, res.body)
-      return res.body
-    }
-  } catch {}
+  // 2. 加密接口 newlyric.kuwo.cn（先不带 lrcx，失败再带 lrcx）
+  for (const withLyricx of [false, true]) {
+    try {
+      const res = await requestBuffer(`http://newlyric.kuwo.cn/newlyric.lrc?${buildParams(songId, withLyricx)}`, {
+        headers: { Referer: 'http://www.kuwo.cn/', 'User-Agent': 'Mozilla/5.0' },
+        timeout: 6000,
+      })
+      const lrc = parseNewlyric(res.buffer, withLyricx)
+      if (lrc && /\[\d{1,2}:/.test(lrc)) {
+        cacheSet('lyric', cacheKey, lrc)
+        return lrc
+      }
+    } catch {}
+  }
 
   return '' // 失败不缓存，允许下次重试
 }
