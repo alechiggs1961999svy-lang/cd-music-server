@@ -1,6 +1,14 @@
 // 统一的 fetch 封装：带 UA/Referer、超时、JSON 解析、内存缓存
 const DEFAULT_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
 
+// 网易云图床在部分手机（VPN/证书）加载失败 → 走自家图片代理
+const IMG_PROXY = 'https://api.12accbi.top/api/img?url='
+const proxyImg = url => {
+  if (!url) return ''
+  if (/music\.126\.net/.test(url)) return IMG_PROXY + encodeURIComponent(url)
+  return url
+}
+
 // 简单的内存缓存（Vercel serverless 实例内有效，够用）
 const cache = new Map()
 const cacheTTL = {
@@ -64,4 +72,4 @@ async function requestBuffer(url, { headers = {}, timeout = 8000 } = {}) {
   }
 }
 
-module.exports = { request, requestBuffer, DEFAULT_UA, formatPlayTime, sizeFormate, cacheGet, cacheSet }
+module.exports = { request, requestBuffer, DEFAULT_UA, formatPlayTime, sizeFormate, cacheGet, cacheSet, proxyImg }

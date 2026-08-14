@@ -1,7 +1,7 @@
 // 网易云平台：搜索 + 歌词（用公开接口，稳定简单）
 // 封面保持 http 原样（与坤音一致：客户端已开 usesCleartextTraffic，
 // 手机上 http 图床可达，https 反而可能证书异常）
-const { request, DEFAULT_UA, formatPlayTime, sizeFormate, cacheGet, cacheSet } = require('./http')
+const { request, DEFAULT_UA, formatPlayTime, sizeFormate, cacheGet, cacheSet, proxyImg } = require('./http')
 
 // 搜索（单曲，公开接口）
 async function search(keyword, page = 1, limit = 30) {
@@ -29,7 +29,7 @@ async function search(keyword, page = 1, limit = 30) {
       singer: (item.artists || []).map(a => a.name).join('、'),
       albumName: item.album?.name || '',
       albumId: String(item.album?.id || ''),
-      img: item.album?.picUrl || item.album?.artist?.img1v1Url || '',
+      img: proxyImg(item.album?.picUrl || item.album?.artist?.img1v1Url || ''),
       interval: formatPlayTime((item.duration || 0) / 1000),
       types,
       _types,
