@@ -3,6 +3,8 @@
 // - 本地调试：node api/index.js（自建 http 服务路由到相同逻辑）
 const netease = require('../src/netEase')
 const qq = require('../src/qq')
+const kg = require('../src/kg')
+const kw = require('../src/kw')
 const playlist = require('../src/playlist')
 const qqPlaylist = require('../src/qqPlaylist')
 const kgPlaylist = require('../src/kgPlaylist')
@@ -21,13 +23,18 @@ async function handle(action, body) {
       if (!keyword) return fail('缺少 keyword')
       if (source === 'wy') return ok({ list: await netease.search(keyword, page, limit) })
       if (source === 'tx') return ok({ list: await qq.search(keyword, page, limit) })
+      if (source === 'kg') return ok({ list: await kg.search(keyword, page, limit) })
+      if (source === 'kw') return ok({ list: await kw.search(keyword, page, limit) })
       return fail(`不支持的源: ${source}`)
     }
     case 'lyric': {
-      const { source, musicId } = body || {}
+      const { source, musicId, name, interval } = body || {}
       if (!musicId) return fail('缺少 musicId')
       if (source === 'wy') return ok({ lyric: await netease.lyric(musicId) })
       if (source === 'tx') return ok({ lyric: await qq.lyric(musicId) })
+      // kg 歌词搜索需要歌名+hash+时长
+      if (source === 'kg') return ok({ lyric: await kg.lyric(name || '', musicId, interval) })
+      if (source === 'kw') return ok({ lyric: await kw.lyric(musicId) })
       return fail(`不支持的源: ${source}`)
     }
     case 'playlist': {
