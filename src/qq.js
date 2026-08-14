@@ -9,7 +9,7 @@ const QH = {
 
 // 搜索（单曲，公开接口 client_search_cp）
 async function search(keyword, page = 1, limit = 30) {
-  const cacheKey = `${keyword}_${page}_${limit}`
+  const cacheKey = `tx_${keyword}_${page}_${limit}` // 带平台前缀，防止与网易云缓存串台
   const cached = cacheGet('search', cacheKey)
   if (cached) return cached
 
@@ -45,7 +45,7 @@ async function search(keyword, page = 1, limit = 30) {
 
 // 歌词（用博客验证过的 fcg_query_lyric_new 接口）
 async function lyric(songmid) {
-  const cached = cacheGet('lyric', songmid)
+  const cached = cacheGet('lyric', `tx_${songmid}`)
   if (cached !== undefined) return cached
 
   const res = await request(
@@ -54,7 +54,7 @@ async function lyric(songmid) {
   )
   const data = res.body
   if (!data || data.retcode !== 0 || !data.lyric) return ''
-  cacheSet('lyric', songmid, data.lyric)
+  cacheSet('lyric', `tx_${songmid}`, data.lyric)
   return data.lyric
 }
 

@@ -1,9 +1,6 @@
 // 网易云歌单解析（公开 v6 接口，同博客 musicApi.ts；限 500 首防 Vercel 超时）
 const { request, DEFAULT_UA, formatPlayTime, cacheGet, cacheSet } = require('./http')
 
-// 封面 https 化（Android 9+ 禁明文 http）
-const toHttps = u => (u || '').replace(/^http:\/\//, 'https://')
-
 const extractId = raw => {
   let id = String(raw).trim()
   const m1 = id.match(/[?&]id=(\d+)/)
@@ -15,7 +12,7 @@ const extractId = raw => {
 
 async function getPlaylist(rawId) {
   const id = extractId(rawId)
-  const cached = cacheGet('playlist', id)
+  const cached = cacheGet('playlist', `wy_${id}`)
   if (cached) return cached
   // 1. v6 接口拿歌单名 + 全部歌曲 ID
   const res = await request(`https://music.163.com/api/v6/playlist/detail?id=${id}&n=100000`, {
@@ -45,7 +42,7 @@ async function getPlaylist(rawId) {
           singer: (s.artists || []).map(a => a.name).join('、'),
           albumName: s.album?.name || '',
           albumId: String(s.album?.id || ''),
-          img: toHttps(s.album?.picUrl || ''),
+          img: s.album?.picUrl || '',
           interval: formatPlayTime((s.duration || 0) / 1000),
         })
       })
@@ -62,12 +59,12 @@ async function getPlaylist(rawId) {
   const result = {
     source: 'wy',
     name: playlist.name || '导入歌单',
-    img: toHttps(playlist.coverImgUrl || ''),
+    img: playlist.coverImgUrl || '',
     author: playlist.creator?.nickname || '',
     total: playlist.trackIds.length,
     songs,
   }
-  cacheSet('playlist', id, result)
+  cacheSet('playlist', `wy_${id}`, result)
   return result
 }
 
