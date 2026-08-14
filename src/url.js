@@ -2,7 +2,8 @@
 const { request, cacheGet, cacheSet } = require('./http')
 
 const API = 'https://c.wwwweb.top/music/url'
-const KEY = process.env.MUSIC_SOURCE_KEY || '[REMOVED]'
+// 音源 Key 只从环境变量读取（Vercel Settings → Environment Variables → IKUN_Music）
+const KEY = process.env.IKUN_Music || ''
 
 // 实测支持的档位（降级链，从高到低）
 const QUALITY_CHAIN = ['master', 'flac24bit', 'hires', 'flac', '320k', '128k']
@@ -14,6 +15,10 @@ const normalizeUrl = (source, url) => {
 }
 
 async function getUrl(source, musicId, quality = 'master') {
+  if (!KEY) {
+    console.warn('[cd-server] 缺少音源 Key：请设置环境变量 IKUN_Music')
+    return null
+  }
   const cacheKey = `${source}_${musicId}_${quality}`
   const cached = cacheGet('url', cacheKey)
   if (cached) return cached
