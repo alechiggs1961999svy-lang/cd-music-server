@@ -1,6 +1,9 @@
 // 网易云平台：搜索 + 歌词（用公开接口，稳定简单）
 const { request, DEFAULT_UA, formatPlayTime, sizeFormate, cacheGet, cacheSet } = require('./http')
 
+// 封面 https 化（Android 9+ 禁明文 http，music.126.net 支持 https）
+const toHttps = u => (u || '').replace(/^http:\/\//, 'https://')
+
 // 搜索（单曲，公开接口）
 async function search(keyword, page = 1, limit = 30) {
   const cacheKey = `${keyword}_${page}_${limit}`
@@ -27,7 +30,7 @@ async function search(keyword, page = 1, limit = 30) {
       singer: (item.artists || []).map(a => a.name).join('、'),
       albumName: item.album?.name || '',
       albumId: String(item.album?.id || ''),
-      img: item.album?.picUrl || item.album?.artist?.img1v1Url || '',
+      img: toHttps(item.album?.picUrl || item.album?.artist?.img1v1Url || ''),
       interval: formatPlayTime((item.duration || 0) / 1000),
       types,
       _types,

@@ -1,6 +1,9 @@
 // 网易云歌单解析（公开 v6 接口，同博客 musicApi.ts；限 500 首防 Vercel 超时）
 const { request, DEFAULT_UA, formatPlayTime, cacheGet, cacheSet } = require('./http')
 
+// 封面 https 化（Android 9+ 禁明文 http）
+const toHttps = u => (u || '').replace(/^http:\/\//, 'https://')
+
 const extractId = raw => {
   let id = String(raw).trim()
   const m1 = id.match(/[?&]id=(\d+)/)
@@ -42,7 +45,7 @@ async function getPlaylist(rawId) {
           singer: (s.artists || []).map(a => a.name).join('、'),
           albumName: s.album?.name || '',
           albumId: String(s.album?.id || ''),
-          img: s.album?.picUrl || '',
+          img: toHttps(s.album?.picUrl || ''),
           interval: formatPlayTime((s.duration || 0) / 1000),
         })
       })
@@ -59,7 +62,7 @@ async function getPlaylist(rawId) {
   const result = {
     source: 'wy',
     name: playlist.name || '导入歌单',
-    img: playlist.coverImgUrl || '',
+    img: toHttps(playlist.coverImgUrl || ''),
     author: playlist.creator?.nickname || '',
     total: playlist.trackIds.length,
     songs,
